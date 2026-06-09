@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { MapPin, Phone, Mail, Globe, Camera, Video, Briefcase } from "lucide-react";
 import { scrollToSection } from "@/lib/utils";
+import { fetchProjects } from "@/lib/api";
 
 const quickLinks = [
   { label: "Home", href: "hero" },
@@ -11,14 +13,6 @@ const quickLinks = [
   { label: "Projects", href: "projects" },
   { label: "Gallery", href: "gallery" },
   { label: "Contact", href: "contact" },
-];
-
-const ourProjects = [
-  "Vaagdevi Heights",
-  "Gold Crest Towers",
-  "Vaagdevi Tech Park",
-  "Green Valley Plots",
-  "Royal Residency",
 ];
 
 const socialLinks = [
@@ -42,8 +36,16 @@ const fadeIn = {
 };
 
 export default function Footer() {
+  const [ourProjects, setOurProjects] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchProjects()
+      .then((data) => setOurProjects(data.map((p: any) => p.title)))
+      .catch(() => setOurProjects([]));
+  }, []);
+
   return (
-    <footer className="bg-[#081C3A] text-white/80 py-16 px-4">
+    <footer className="bg-[#081528] text-white/80 py-16 px-4">
       <div className="mx-auto max-w-7xl">
         <motion.div
           variants={stagger}
@@ -58,9 +60,9 @@ export default function Footer() {
               <Image
                 src="/images/logo.png"
                 alt="Vaagdevi Infra Projects"
-                width={220}
-                height={75}
-                className="h-16 w-auto object-contain"
+                width={180}
+                height={120}
+                className="h-20 w-auto object-contain"
               />
             </div>
             <p className="text-sm text-white/50 leading-relaxed">
@@ -105,18 +107,22 @@ export default function Footer() {
             <h4 className="text-white font-semibold text-sm tracking-wider uppercase">
               Our Projects
             </h4>
-            <ul className="space-y-3">
-              {ourProjects.map((project) => (
-                <li key={project}>
-                  <button
-                    onClick={() => scrollToSection("projects")}
-                    className="text-sm text-white/50 hover:text-accent transition-colors duration-300 cursor-pointer"
-                  >
-                    {project}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {ourProjects.length > 0 ? (
+              <ul className="space-y-3">
+                {ourProjects.map((project) => (
+                  <li key={project}>
+                    <button
+                      onClick={() => scrollToSection("projects")}
+                      className="text-sm text-white/50 hover:text-accent transition-colors duration-300 cursor-pointer"
+                    >
+                      {project}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-white/30">No projects yet</p>
+            )}
           </motion.div>
 
           {/* Col 4 - Contact Info */}

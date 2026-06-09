@@ -55,7 +55,7 @@ export default function Gallery() {
           <span className="gold-text inline-block text-sm font-semibold tracking-[0.2em] uppercase mb-4">
             Gallery
           </span>
-          <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl text-secondary font-bold">
+            <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl text-secondary font-bold">
             Moments That Define Us
           </h2>
           <div className="mx-auto mt-4 h-1 w-20 gold-gradient rounded-full" />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import AdminSidebar from "@/components/shared/AdminSidebar";
@@ -16,27 +17,7 @@ import {
 import Link from "next/link";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 
-const stats = [
-  { icon: Building2, label: "Total Projects", value: "6", color: "from-blue-500 to-blue-600" },
-  { icon: Activity, label: "Active Projects", value: "4", color: "from-emerald-500 to-emerald-600" },
-  { icon: Users, label: "Total Leads", value: "24", color: "from-accent to-accent-dark" },
-  { icon: TrendingUp, label: "Monthly Leads", value: "8", color: "from-purple-500 to-purple-600" },
-];
-
-const recentLeads = [
-  { name: "Rajesh Kumar", project: "Vaagdevi Heights", date: "2026-06-05", status: "New" },
-  { name: "Priya Sharma", project: "Gold Crest Towers", date: "2026-06-04", status: "Contacted" },
-  { name: "Amit Verma", project: "Green Valley Plots", date: "2026-06-03", status: "Qualified" },
-  { name: "Sneha Reddy", project: "Vaagdevi Tech Park", date: "2026-06-02", status: "New" },
-  { name: "Vikram Singh", project: "Royal Residency", date: "2026-06-01", status: "Converted" },
-];
-
-const statusColors: Record<string, string> = {
-  New: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  Contacted: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  Qualified: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  Converted: "bg-accent/20 text-accent border-accent/30",
-};
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -55,13 +36,71 @@ const itemVariants = {
   },
 };
 
+interface DashboardData {
+  totalProjects: number;
+  activeProjects: number;
+  totalLeads: number;
+  monthlyLeads: number;
+}
+
+interface RecentLead {
+  _id: string;
+  name: string;
+  interestedProject: string;
+  createdAt: string;
+  status: string;
+}
+
 export default function AdminDashboard() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [recent, setRecent] = useState<RecentLead[]>([]);
+  const [fetching, setFetching] = useState(true);
+
   const { isAuthenticated, loading } = useAdminAuth();
-  if (loading) return null;
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const token = localStorage.getItem("admin_token");
+
+    fetch(`${API_URL}/analytics`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success) setData(res.data);
+      })
+      .catch(() => {});
+
+    fetch(`${API_URL}/leads`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success) setRecent(res.data.slice(0, 5));
+      })
+      .catch(() => {})
+      .finally(() => setFetching(false));
+  }, [isAuthenticated]);
+
+  if (loading || fetching) return null;
   if (!isAuthenticated) return null;
 
+  const stats = [
+    { icon: Building2, label: "Total Projects", value: String(data?.totalProjects ?? 0), color: "from-blue-500 to-blue-600" },
+    { icon: Activity, label: "Active Projects", value: String(data?.activeProjects ?? 0), color: "from-emerald-500 to-emerald-600" },
+    { icon: Users, label: "Total Leads", value: String(data?.totalLeads ?? 0), color: "from-accent to-accent-dark" },
+    { icon: TrendingUp, label: "Monthly Leads", value: String(data?.monthlyLeads ?? 0), color: "from-purple-500 to-purple-600" },
+  ];
+
+  const statusColors: Record<string, string> = {
+    New: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+    Contacted: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+    Qualified: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    Converted: "bg-accent/20 text-accent border-accent/30",
+  };
+
   return (
-    <div className="min-h-screen bg-[#0a0a1a]">
+    <div className="min-h-screen bg-[#1A1A1A]">
       <AdminSidebar />
 
       {/* Main Content */}
@@ -142,17 +181,17 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentLeads.map((lead, i) => (
+                  {recent.map((lead, i) => (
                     <motion.tr
-                      key={lead.name}
+                      key={lead._id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.4 + i * 0.05, duration: 0.3 }}
                       className="border-b border-accent/5 hover:bg-white/5 transition-colors"
                     >
                       <td className="px-6 py-4 text-white font-medium">{lead.name}</td>
-                      <td className="px-6 py-4 text-white/60">{lead.project}</td>
-                      <td className="px-6 py-4 text-white/40">{lead.date}</td>
+                      <td className="px-6 py-4 text-white/60">{lead.interestedProject}</td>
+                      <td className="px-6 py-4 text-white/40">{new Date(lead.createdAt).toLocaleDateString("en-IN")}</td>
                       <td className="px-6 py-4">
                         <span className={cn(
                           "inline-block px-3 py-1 rounded-full text-xs font-semibold border",

@@ -69,9 +69,9 @@ export default function Navbar() {
             <Image
               src="/images/logo.png"
               alt="Vaagdevi Infra Projects"
-              width={280}
-              height={95}
-              className="h-16 md:h-20 w-auto object-contain logo-glow"
+              width={180}
+              height={120}
+              className="h-14 md:h-20 w-auto object-contain logo-glow"
               priority
             />
           </button>
@@ -157,8 +157,8 @@ export default function Navbar() {
                     <Image
                       src="/images/logo.png"
                       alt="Vaagdevi Infra Projects"
-                      width={220}
-                      height={75}
+                      width={150}
+                      height={100}
                       className="h-14 w-auto object-contain"
                     />
                   </div>

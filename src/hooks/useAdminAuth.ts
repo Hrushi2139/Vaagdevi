@@ -50,9 +50,10 @@ export function useAdminAuth(requireAuth = true) {
   const logout = () => {
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_user");
+    localStorage.removeItem("vaagdevi_admin");
     setIsAuthenticated(false);
     setUser(null);
-    router.replace("/admin");
+    window.location.href = "/admin";
   };
 
   return { isAuthenticated, loading, user, login, logout };

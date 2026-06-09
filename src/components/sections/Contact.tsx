@@ -1,18 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
-
-const projects = [
-  "Vaagdevi Heights",
-  "Gold Crest Towers",
-  "Vaagdevi Tech Park",
-  "Green Valley Plots",
-  "Royal Residency",
-  "Vaagdevi Galleria",
-];
+import { fetchProjects } from "@/lib/api";
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -28,6 +20,7 @@ const fadeIn = {
 };
 
 export default function Contact() {
+  const [projects, setProjects] = useState<string[]>([]);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -36,15 +29,37 @@ export default function Contact() {
     message: "",
   });
 
+  useEffect(() => {
+    fetchProjects()
+      .then((data) => setProjects(data.map((p: any) => p.title)))
+      .catch(() => setProjects([]));
+  }, []);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Enquiry Submitted:", form);
+    try {
+      await fetch("http://localhost:5000/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          interestedProject: form.project,
+          message: form.message,
+          source: "Website",
+        }),
+      });
+      setForm({ name: "", phone: "", email: "", project: "", message: "" });
+    } catch (err) {
+      console.error("Failed to submit enquiry", err);
+    }
   };
 
   return (

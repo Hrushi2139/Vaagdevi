@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import AdminSidebar from "@/components/shared/AdminSidebar";
@@ -14,18 +14,20 @@ import {
   FileText,
 } from "lucide-react";
 
-const leadsData = [
-  { id: "1", name: "Rajesh Kumar", phone: "+91 98765 43210", email: "rajesh@email.com", project: "Vaagdevi Heights", date: "2026-06-05", status: "New", notes: "Interested in 3BHK, wants ground floor" },
-  { id: "2", name: "Priya Sharma", phone: "+91 87654 32109", email: "priya@email.com", project: "Gold Crest Towers", date: "2026-06-04", status: "Contacted", notes: "Called, will visit this weekend" },
-  { id: "3", name: "Amit Verma", phone: "+91 76543 21098", email: "amit@email.com", project: "Green Valley Plots", date: "2026-06-03", status: "Qualified", notes: "Budget 50L, interested in 200sqyd plot" },
-  { id: "4", name: "Sneha Reddy", phone: "+91 65432 10987", email: "sneha@email.com", project: "Vaagdevi Tech Park", date: "2026-06-02", status: "New", notes: "Looking for commercial office space" },
-  { id: "5", name: "Vikram Singh", phone: "+91 54321 09876", email: "vikram@email.com", project: "Royal Residency", date: "2026-06-01", status: "Converted", notes: "Booked 4BHK, payment done" },
-  { id: "6", name: "Ananya Gupta", phone: "+91 43210 98765", email: "ananya@email.com", project: "Vaagdevi Heights", date: "2026-05-30", status: "Contacted", notes: "Comparing with other builders" },
-  { id: "7", name: "Rahul Joshi", phone: "+91 32109 87654", email: "rahul@email.com", project: "Gold Crest Towers", date: "2026-05-28", status: "Qualified", notes: "Ready to book, needs loan assistance" },
-  { id: "8", name: "Neha Patel", phone: "+91 21098 76543", email: "neha@email.com", project: "Green Valley Plots", date: "2026-05-25", status: "New", notes: "Wants corner plot, premium location" },
-  { id: "9", name: "Deepak Kumar", phone: "+91 10987 65432", email: "deepak@email.com", project: "Vaagdevi Galleria", date: "2026-05-22", status: "Contacted", notes: "Interested in retail space" },
-  { id: "10", name: "Kavita Sharma", phone: "+91 99887 76655", email: "kavita@email.com", project: "Vaagdevi Tech Park", date: "2026-05-20", status: "Converted", notes: "Leased 2 floors for IT company" },
-];
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+interface Lead {
+  _id: string;
+  name: string;
+  phone: string;
+  email: string;
+  interestedProject: string;
+  message: string;
+  source: string;
+  status: string;
+  notes: string;
+  createdAt: string;
+}
 
 const statusColors: Record<string, string> = {
   New: "bg-blue-500/20 text-blue-300 border-blue-500/30",
@@ -45,10 +47,13 @@ const statsRow = [
 ];
 
 export default function AdminLeads() {
-  const [leads, setLeads] = useState(leadsData);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedLead, setSelectedLead] = useState<typeof leadsData[0] | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [statusFilter, setStatusFilter] = useState("All");
+  const [fetching, setFetching] = useState(true);
+
+  const { isAuthenticated, loading } = useAdminAuth();
 
   const filteredLeads = useMemo(
     () =>
@@ -71,21 +76,47 @@ export default function AdminLeads() {
     return counts;
   }, [leads]);
 
-  const { isAuthenticated, loading } = useAdminAuth();
-  if (loading) return null;
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const token = localStorage.getItem("admin_token");
+    fetch(`${API_URL}/leads`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setLeads(data.data);
+      })
+      .catch((err) => console.error("Failed to fetch leads", err))
+      .finally(() => setFetching(false));
+  }, [isAuthenticated]);
+
+  if (loading || fetching) return null;
   if (!isAuthenticated) return null;
 
-  const updateStatus = (id: string, newStatus: string) => {
-    setLeads((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
-    );
-    if (selectedLead?.id === id) {
-      setSelectedLead((prev) => prev ? { ...prev, status: newStatus } : null);
+  const updateStatus = async (id: string, newStatus: string) => {
+    const token = localStorage.getItem("admin_token");
+    try {
+      await fetch(`${API_URL}/leads/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      setLeads((prev) =>
+        prev.map((l) => (l._id === id ? { ...l, status: newStatus } : l))
+      );
+      if (selectedLead?._id === id) {
+        setSelectedLead((prev) => prev ? { ...prev, status: newStatus } : null);
+      }
+    } catch (err) {
+      console.error("Failed to update lead", err);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a1a]">
+    <div className="min-h-screen bg-[#1A1A1A]">
       <AdminSidebar />
 
       <div className="md:ml-64 min-h-screen">
@@ -177,7 +208,7 @@ export default function AdminLeads() {
                   <AnimatePresence mode="popLayout">
                     {filteredLeads.map((lead, i) => (
                       <motion.tr
-                        key={lead.id}
+                        key={lead._id}
                         layout
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -189,8 +220,8 @@ export default function AdminLeads() {
                         <td className="px-6 py-4 text-white font-medium">{lead.name}</td>
                         <td className="px-6 py-4 text-white/60">{lead.phone}</td>
                         <td className="px-6 py-4 text-white/50">{lead.email}</td>
-                        <td className="px-6 py-4 text-white/60">{lead.project}</td>
-                        <td className="px-6 py-4 text-white/40">{lead.date}</td>
+                        <td className="px-6 py-4 text-white/60">{lead.interestedProject}</td>
+                        <td className="px-6 py-4 text-white/40">{new Date(lead.createdAt).toLocaleDateString("en-IN")}</td>
                         <td className="px-6 py-4">
                           <span className={cn(
                             "inline-block px-3 py-1 rounded-full text-xs font-semibold border",
@@ -204,7 +235,7 @@ export default function AdminLeads() {
                             value={lead.status}
                             onChange={(e) => {
                               e.stopPropagation();
-                              updateStatus(lead.id, e.target.value);
+                              updateStatus(lead._id, e.target.value);
                             }}
                             onClick={(e) => e.stopPropagation()}
                             className="px-2 py-1 bg-white/5 border border-white/10 rounded text-white/70 text-xs focus:outline-none focus:border-accent cursor-pointer appearance-none"
@@ -281,11 +312,11 @@ export default function AdminLeads() {
                   </div>
                   <div className="flex items-center gap-3 text-white/60">
                     <Calendar size={16} className="text-accent" />
-                    <span>{selectedLead.date}</span>
+                    <span>{new Date(selectedLead.createdAt).toLocaleDateString("en-IN")}</span>
                   </div>
                   <div className="flex items-center gap-3 text-white/60">
                     <FileText size={16} className="text-accent" />
-                    <span>{selectedLead.project}</span>
+                    <span>{selectedLead.interestedProject}</span>
                   </div>
                 </div>
 
@@ -293,7 +324,7 @@ export default function AdminLeads() {
                   <label className="block text-white/70 text-sm font-medium mb-2">Status</label>
                   <select
                     value={selectedLead.status}
-                    onChange={(e) => updateStatus(selectedLead.id, e.target.value)}
+                    onChange={(e) => updateStatus(selectedLead._id, e.target.value)}
                     className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all appearance-none cursor-pointer"
                   >
                     {statusOptions.map((s) => (
@@ -309,7 +340,7 @@ export default function AdminLeads() {
                     onChange={(e) => {
                       setLeads((prev) =>
                         prev.map((l) =>
-                          l.id === selectedLead.id ? { ...l, notes: e.target.value } : l
+                          l._id === selectedLead._id ? { ...l, notes: e.target.value } : l
                         )
                       );
                       setSelectedLead((prev) => prev ? { ...prev, notes: e.target.value } : null);

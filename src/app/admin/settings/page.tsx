@@ -12,7 +12,7 @@ export default function AdminSettings() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a1a]">
+    <div className="min-h-screen bg-[#1A1A1A]">
       <AdminSidebar />
       <div className="md:ml-64 min-h-screen">
         <div className="sticky top-0 z-30 bg-secondary/80 backdrop-blur-lg border-b border-accent/10 px-6 py-4">

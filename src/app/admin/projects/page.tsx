@@ -1,86 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import AdminSidebar from "@/components/shared/AdminSidebar";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { fetchProjects, createProject, updateProject, deleteProject } from "@/lib/api";
 import {
   Plus,
   Edit,
   Trash2,
   X,
   MapPin,
+  Loader2,
+  Globe,
+  Download,
+  Map as MapIcon,
 } from "lucide-react";
-
-const initialProjects = [
-  {
-    id: "1",
-    title: "Vaagdevi Heights",
-    location: "Madhapur, Hyderabad",
-    status: "Ongoing",
-    category: "Residential",
-    plotSize: "2.5 Acres",
-    features: ["Gym", "Pool", "Garden", "Club House"],
-    images: ["https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800"],
-    description: "Premium residential towers with world-class amenities",
-  },
-  {
-    id: "2",
-    title: "Gold Crest Towers",
-    location: "Gachibowli, Hyderabad",
-    status: "Completed",
-    category: "Residential",
-    plotSize: "3 Acres",
-    features: ["Spa", "Tennis Court", "Sky Lounge", "Theatre"],
-    images: ["https://images.unsplash.com/photo-1486325212027-8081e485255e?w=800"],
-    description: "Luxury living redefined with panoramic city views",
-  },
-  {
-    id: "3",
-    title: "Vaagdevi Tech Park",
-    location: "Hitech City, Hyderabad",
-    status: "Ongoing",
-    category: "Commercial",
-    plotSize: "5 Acres",
-    features: ["LEED Certified", "Smart Building", "Convention Center"],
-    images: ["https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=800"],
-    description: "A-grade commercial spaces for global enterprises",
-  },
-  {
-    id: "4",
-    title: "Green Valley Plots",
-    location: "Shamshabad, Hyderabad",
-    status: "Ongoing",
-    category: "Open Plots",
-    plotSize: "15 Acres",
-    features: ["Park", "Lake View", "Gated Community"],
-    images: ["https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800"],
-    description: "Serene open plots with breathtaking natural surroundings",
-  },
-  {
-    id: "5",
-    title: "Royal Residency",
-    location: "Banjara Hills, Hyderabad",
-    status: "Completed",
-    category: "Residential",
-    plotSize: "1.8 Acres",
-    features: ["Rooftop Pool", "Private Elevator", "Concierge"],
-    images: ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800"],
-    description: "Exclusive boutique residences in the heart of the city",
-  },
-  {
-    id: "6",
-    title: "Vaagdevi Galleria",
-    location: "Kompally, Hyderabad",
-    status: "Upcoming",
-    category: "Commercial",
-    plotSize: "4 Acres",
-    features: ["Retail", "Food Court", "Multiplex", "Parking"],
-    images: ["https://images.unsplash.com/photo-1577415124269-fc1140a69e91?w=800"],
-    description: "Upcoming retail and entertainment destination",
-  },
-];
 
 const statusColors: Record<string, string> = {
   Ongoing: "bg-accent/20 text-accent border-accent/30",
@@ -100,16 +36,32 @@ const defaultForm = {
   description: "",
   features: [""],
   images: [""],
+  amenities: [""],
+  landmarks: [{ name: "", distance: "" }] as { name: string; distance: string }[],
+  lat: "",
+  lng: "",
+  brochure: "",
+  masterPlan: "",
 };
 
 export default function AdminProjects() {
-  const [projects, setProjects] = useState(initialProjects);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
-  const { isAuthenticated, loading } = useAdminAuth();
-  if (loading) return null;
+  const { isAuthenticated, loading: authLoading } = useAdminAuth();
+
+  useEffect(() => {
+    fetchProjects()
+      .then((data) => setProjects(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (authLoading) return null;
   if (!isAuthenticated) return null;
 
   const openAdd = () => {
@@ -118,55 +70,85 @@ export default function AdminProjects() {
     setShowModal(true);
   };
 
-  const openEdit = (id: string) => {
-    const p = projects.find((x) => x.id === id);
-    if (!p) return;
+  const openEdit = (p: any) => {
     setForm({
       title: p.title,
       location: p.location,
       status: p.status,
       category: p.category,
-      plotSize: p.plotSize,
-      description: p.description,
-      features: [...p.features, ""],
-      images: [...p.images, ""],
+      plotSize: p.plotSize || "",
+      description: p.description || "",
+      features: p.features?.length ? [...p.features, ""] : [""],
+      images: p.images?.length ? [...p.images, ""] : [""],
+      amenities: p.amenities?.length ? [...p.amenities, ""] : [""],
+      landmarks: p.nearbyLandmarks?.length ? [...p.nearbyLandmarks, { name: "", distance: "" }] : [{ name: "", distance: "" }],
+      lat: p.coordinates?.lat?.toString() || "",
+      lng: p.coordinates?.lng?.toString() || "",
+      brochure: p.brochure || "",
+      masterPlan: p.masterPlan || "",
     });
-    setEditingId(id);
+    setEditingId(p._id);
     setShowModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const features = form.features.filter((f) => f.trim());
     const images = form.images.filter((i) => i.trim());
+    const amenities = form.amenities.filter((a) => a.trim());
+    const nearbyLandmarks = form.landmarks.filter((l) => l.name.trim() && l.distance.trim());
+    const coordinates = form.lat && form.lng ? { lat: parseFloat(form.lat), lng: parseFloat(form.lng) } : undefined;
     if (!form.title.trim() || !form.location.trim()) return;
 
-    if (editingId) {
-      setProjects((prev) =>
-        prev.map((p) =>
-          p.id === editingId ? { ...p, ...form, features, images } : p
-        )
-      );
-    } else {
-      setProjects((prev) => [
-        ...prev,
-        { ...form, features, images, id: String(Date.now()) },
-      ]);
+    setSaving(true);
+    try {
+      const payload = {
+        title: form.title.trim(),
+        slug: form.title.trim().toLowerCase().replace(/\s+/g, "-"),
+        location: form.location.trim(),
+        status: form.status,
+        category: form.category,
+        plotSize: form.plotSize.trim(),
+        description: form.description.trim(),
+        features,
+        images,
+        amenities,
+        nearbyLandmarks,
+        coordinates,
+        brochure: form.brochure.trim() || undefined,
+        masterPlan: form.masterPlan.trim() || undefined,
+      };
+
+      if (editingId) {
+        const updated = await updateProject(editingId, payload);
+        setProjects((prev) => prev.map((p) => (p._id === editingId ? updated : p)));
+      } else {
+        const created = await createProject(payload);
+        setProjects((prev) => [created, ...prev]);
+      }
+      setShowModal(false);
+    } catch (err) {
+      console.error("Failed to save project", err);
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false);
   };
 
-  const confirmDelete = () => {
-    if (deleteId) {
-      setProjects((prev) => prev.filter((p) => p.id !== deleteId));
-      setDeleteId(null);
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteProject(deleteId);
+      setProjects((prev) => prev.filter((p) => p._id !== deleteId));
+    } catch (err) {
+      console.error("Failed to delete project", err);
     }
+    setDeleteId(null);
   };
 
   const updateForm = (key: string, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const updateArrayField = (field: "features" | "images", index: number, value: string) => {
+  const updateArrayField = (field: "features" | "images" | "amenities", index: number, value: string) => {
     setForm((prev) => {
       const arr = [...prev[field]];
       arr[index] = value;
@@ -174,19 +156,38 @@ export default function AdminProjects() {
     });
   };
 
-  const addArrayField = (field: "features" | "images") => {
+  const addArrayField = (field: "features" | "images" | "amenities") => {
     setForm((prev) => ({ ...prev, [field]: [...prev[field], ""] }));
   };
 
-  const removeArrayField = (field: "features" | "images", index: number) => {
+  const removeArrayField = (field: "features" | "images" | "amenities", index: number) => {
     setForm((prev) => {
       const arr = prev[field].filter((_, i) => i !== index);
       return { ...prev, [field]: arr.length ? arr : [""] };
     });
   };
 
+  const updateLandmarkField = (index: number, key: "name" | "distance", value: string) => {
+    setForm((prev) => {
+      const arr = [...prev.landmarks];
+      arr[index] = { ...arr[index], [key]: value };
+      return { ...prev, landmarks: arr };
+    });
+  };
+
+  const addLandmark = () => {
+    setForm((prev) => ({ ...prev, landmarks: [...prev.landmarks, { name: "", distance: "" }] }));
+  };
+
+  const removeLandmark = (index: number) => {
+    setForm((prev) => {
+      const arr = prev.landmarks.filter((_, i) => i !== index);
+      return { ...prev, landmarks: arr.length ? arr : [{ name: "", distance: "" }] };
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-[#0a0a1a]">
+    <div className="min-h-screen bg-[#1A1A1A]">
       <AdminSidebar />
 
       <div className="md:ml-64 min-h-screen">
@@ -206,79 +207,90 @@ export default function AdminProjects() {
 
         {/* Projects Table */}
         <div className="p-6">
-          <div className="bg-secondary/60 border border-accent/10 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-accent/5">
-                    <th className="text-left px-6 py-4 text-white/40 font-medium">Image</th>
-                    <th className="text-left px-6 py-4 text-white/40 font-medium">Title</th>
-                    <th className="text-left px-6 py-4 text-white/40 font-medium">Location</th>
-                    <th className="text-left px-6 py-4 text-white/40 font-medium">Status</th>
-                    <th className="text-left px-6 py-4 text-white/40 font-medium">Category</th>
-                    <th className="text-left px-6 py-4 text-white/40 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <AnimatePresence mode="popLayout">
-                    {projects.map((project, i) => (
-                      <motion.tr
-                        key={project.id}
-                        layout
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        transition={{ delay: i * 0.03, duration: 0.3 }}
-                        className="border-b border-accent/5 hover:bg-white/5 transition-colors"
-                      >
-                        <td className="px-6 py-4">
-                          <img
-                            src={                    project.images[0]}
-                            alt={project.title}
-                            className="w-14 h-10 rounded-lg object-cover"
-                          />
-                        </td>
-                        <td className="px-6 py-4 text-white font-medium">{project.title}</td>
-                        <td className="px-6 py-4">
-                          <span className="flex items-center gap-1.5 text-white/60">
-                            <MapPin size={14} className="text-accent" />
-                            {project.location}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={cn(
-                            "inline-block px-3 py-1 rounded-full text-xs font-semibold border",
-                            statusColors[project.status]
-                          )}>
-                            {project.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-white/50">{project.category}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => openEdit(project.id)}
-                              className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                              title="Edit"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              onClick={() => setDeleteId(project.id)}
-                              className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
-                </tbody>
-              </table>
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={32} className="text-accent animate-spin" />
             </div>
-          </div>
+          ) : projects.length === 0 ? (
+            <div className="text-center py-20 text-white/40">
+              <p className="text-lg mb-2">No projects found</p>
+              <p className="text-sm">Add your first project to get started.</p>
+            </div>
+          ) : (
+            <div className="bg-secondary/60 border border-accent/10 rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-accent/5">
+                      <th className="text-left px-6 py-4 text-white/40 font-medium">Image</th>
+                      <th className="text-left px-6 py-4 text-white/40 font-medium">Title</th>
+                      <th className="text-left px-6 py-4 text-white/40 font-medium">Location</th>
+                      <th className="text-left px-6 py-4 text-white/40 font-medium">Status</th>
+                      <th className="text-left px-6 py-4 text-white/40 font-medium">Category</th>
+                      <th className="text-left px-6 py-4 text-white/40 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <AnimatePresence mode="popLayout">
+                      {projects.map((project, i) => (
+                        <motion.tr
+                          key={project._id}
+                          layout
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 20 }}
+                          transition={{ delay: i * 0.03, duration: 0.3 }}
+                          className="border-b border-accent/5 hover:bg-white/5 transition-colors"
+                        >
+                          <td className="px-6 py-4">
+                            <img
+                              src={project.images?.[0] || ""}
+                              alt={project.title}
+                              className="w-14 h-10 rounded-lg object-cover"
+                            />
+                          </td>
+                          <td className="px-6 py-4 text-white font-medium">{project.title}</td>
+                          <td className="px-6 py-4">
+                            <span className="flex items-center gap-1.5 text-white/60">
+                              <MapPin size={14} className="text-accent" />
+                              {project.location}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={cn(
+                              "inline-block px-3 py-1 rounded-full text-xs font-semibold border",
+                              statusColors[project.status]
+                            )}>
+                              {project.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-white/50">{project.category}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => openEdit(project)}
+                                className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                title="Edit"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button
+                                onClick={() => setDeleteId(project._id)}
+                                className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
+                                title="Delete"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </AnimatePresence>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -473,6 +485,111 @@ export default function AdminProjects() {
                     + Add Image
                   </button>
                 </div>
+
+                <div>
+                  <label className="block text-white/70 text-sm font-medium mb-1.5">Amenities</label>
+                  {form.amenities.map((a, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <input
+                        value={a}
+                        onChange={(e) => updateArrayField("amenities", i, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+                        placeholder="Amenity name"
+                      />
+                      {form.amenities.length > 1 && (
+                        <button
+                          onClick={() => removeArrayField("amenities", i)}
+                          className="text-red-400 hover:text-red-300 px-2 cursor-pointer"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => addArrayField("amenities")}
+                    className="text-accent text-sm hover:underline cursor-pointer"
+                  >
+                    + Add Amenity
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-white/70 text-sm font-medium mb-1.5">Nearby Landmarks</label>
+                  {form.landmarks.map((lm, i) => (
+                    <div key={i} className="flex gap-2 mb-2 items-start">
+                      <input
+                        value={lm.name}
+                        onChange={(e) => updateLandmarkField(i, "name", e.target.value)}
+                        className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+                        placeholder="Landmark name"
+                      />
+                      <input
+                        value={lm.distance}
+                        onChange={(e) => updateLandmarkField(i, "distance", e.target.value)}
+                        className="w-24 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+                        placeholder="e.g. 2 km"
+                      />
+                      {form.landmarks.length > 1 && (
+                        <button
+                          onClick={() => removeLandmark(i)}
+                          className="text-red-400 hover:text-red-300 px-2 pt-2 cursor-pointer"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    onClick={addLandmark}
+                    className="text-accent text-sm hover:underline cursor-pointer"
+                  >
+                    + Add Landmark
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-white/70 text-sm font-medium mb-1.5">Coordinates</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <input
+                      value={form.lat}
+                      onChange={(e) => updateForm("lat", e.target.value)}
+                      type="number"
+                      step="any"
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+                      placeholder="Latitude"
+                    />
+                    <input
+                      value={form.lng}
+                      onChange={(e) => updateForm("lng", e.target.value)}
+                      type="number"
+                      step="any"
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+                      placeholder="Longitude"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-white/70 text-sm font-medium mb-1.5">Brochure URL</label>
+                    <input
+                      value={form.brochure}
+                      onChange={(e) => updateForm("brochure", e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+                      placeholder="/brochures/project.pdf"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white/70 text-sm font-medium mb-1.5">Master Plan URL</label>
+                    <input
+                      value={form.masterPlan}
+                      onChange={(e) => updateForm("masterPlan", e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+                      placeholder="Image URL"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-3 justify-end mt-8 pt-4 border-t border-accent/10">
@@ -484,9 +601,10 @@ export default function AdminProjects() {
                 </button>
                 <button
                   onClick={handleSave}
-                  className="gold-gradient text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-lg shadow-accent/20 hover:shadow-xl hover:shadow-accent/30 transition-all duration-300 cursor-pointer"
+                  disabled={saving}
+                  className="gold-gradient text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-lg shadow-accent/20 hover:shadow-xl hover:shadow-accent/30 transition-all duration-300 cursor-pointer disabled:opacity-70"
                 >
-                  {editingId ? "Update" : "Save"}
+                  {saving ? "Saving..." : editingId ? "Update" : "Save"}
                 </button>
               </div>
             </motion.div>

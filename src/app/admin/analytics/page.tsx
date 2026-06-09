@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import AdminSidebar from "@/components/shared/AdminSidebar";
@@ -24,46 +25,9 @@ import {
   Cell,
 } from "recharts";
 
-const stats = [
-  { icon: Building2, label: "Total Projects", value: "6", color: "from-blue-500 to-blue-600" },
-  { icon: Activity, label: "Active Projects", value: "4", color: "from-emerald-500 to-emerald-600" },
-  { icon: Users, label: "Total Leads", value: "24", color: "from-accent to-accent-dark" },
-  { icon: MessageCircle, label: "WhatsApp Clicks", value: "87", color: "from-green-500 to-green-600" },
-  { icon: MapPin, label: "Site Visit Requests", value: "32", color: "from-purple-500 to-purple-600" },
-];
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-const monthlyLeads = [
-  { month: "Jan", leads: 12 },
-  { month: "Feb", leads: 18 },
-  { month: "Mar", leads: 15 },
-  { month: "Apr", leads: 22 },
-  { month: "May", leads: 28 },
-  { month: "Jun", leads: 24 },
-  { month: "Jul", leads: 30 },
-  { month: "Aug", leads: 26 },
-  { month: "Sep", leads: 20 },
-  { month: "Oct", leads: 16 },
-  { month: "Nov", leads: 14 },
-  { month: "Dec", leads: 19 },
-];
-
-const projectPerformance = [
-  { name: "Vaagdevi Heights", leads: 8, visits: 5 },
-  { name: "Gold Crest Towers", leads: 6, visits: 4 },
-  { name: "Vaagdevi Tech Park", leads: 4, visits: 3 },
-  { name: "Green Valley Plots", leads: 10, visits: 7 },
-  { name: "Royal Residency", leads: 3, visits: 2 },
-  { name: "Vaagdevi Galleria", leads: 5, visits: 4 },
-];
-
-const leadSources = [
-  { name: "Website", value: 45 },
-  { name: "WhatsApp", value: 30 },
-  { name: "Site Visit", value: 15 },
-  { name: "Referral", value: 10 },
-];
-
-const COLORS = ["#0B3D91", "#D4A24C", "#10b981", "#8b5cf6"];
+const COLORS = ["#081528", "#D4AF37", "#10b981", "#8b5cf6"];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -82,12 +46,12 @@ const itemVariants = {
   },
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-secondary border border-accent/30 rounded-lg px-4 py-3 shadow-xl">
         <p className="text-white/70 text-xs mb-1">{label}</p>
-        {payload.map((p: any, i: number) => (
+        {payload.map((p, i) => (
           <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
             {p.name}: {p.value}
           </p>
@@ -98,13 +62,54 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+interface AnalyticsData {
+  totalProjects: number;
+  activeProjects: number;
+  totalLeads: number;
+  monthlyLeads: number;
+  whatsappClicks: number;
+  siteVisitRequests: number;
+  monthlyLeadsChart: { month: string; leads: number }[];
+  projectPerformance: { name: string; leads: number; visits: number }[];
+  leadSources: { name: string; value: number }[];
+}
+
 export default function AdminAnalytics() {
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [fetching, setFetching] = useState(true);
   const { isAuthenticated, loading } = useAdminAuth();
-  if (loading) return null;
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const token = localStorage.getItem("admin_token");
+    fetch(`${API_URL}/analytics`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success) setAnalytics(res.data);
+      })
+      .catch(() => {})
+      .finally(() => setFetching(false));
+  }, [isAuthenticated]);
+
+  if (loading || fetching) return null;
   if (!isAuthenticated) return null;
 
+  const stats = [
+    { icon: Building2, label: "Total Projects", value: String(analytics?.totalProjects ?? 0), color: "from-blue-500 to-blue-600" },
+    { icon: Activity, label: "Active Projects", value: String(analytics?.activeProjects ?? 0), color: "from-emerald-500 to-emerald-600" },
+    { icon: Users, label: "Total Leads", value: String(analytics?.totalLeads ?? 0), color: "from-accent to-accent-dark" },
+    { icon: MessageCircle, label: "WhatsApp Clicks", value: String(analytics?.whatsappClicks ?? 0), color: "from-green-500 to-green-600" },
+    { icon: MapPin, label: "Site Visit Requests", value: String(analytics?.siteVisitRequests ?? 0), color: "from-purple-500 to-purple-600" },
+  ];
+
+  const monthlyLeads = analytics?.monthlyLeadsChart ?? [];
+  const projectPerformance = analytics?.projectPerformance ?? [];
+  const leadSources = analytics?.leadSources ?? [];
+
   return (
-    <div className="min-h-screen bg-[#0a0a1a]">
+    <div className="min-h-screen bg-[#1A1A1A]">
       <AdminSidebar />
 
       <div className="md:ml-64 min-h-screen">
@@ -169,7 +174,7 @@ export default function AdminAnalytics() {
                       {monthlyLeads.map((_, i) => (
                         <Cell
                           key={i}
-                          fill={i === monthlyLeads.length - 1 ? "#D4A24C" : "#0B3D91"}
+                          fill={i === monthlyLeads.length - 1 ? "#D4AF37" : "#081528"}
                           fillOpacity={0.8}
                         />
                       ))}
@@ -204,8 +209,8 @@ export default function AdminAnalytics() {
                       width={110}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="leads" name="Leads" fill="#0B3D91" radius={[0, 4, 4, 0]} maxBarSize={16} />
-                    <Bar dataKey="visits" name="Visits" fill="#D4A24C" radius={[0, 4, 4, 0]} maxBarSize={16} />
+                    <Bar dataKey="leads" name="Leads" fill="#081528" radius={[0, 4, 4, 0]} maxBarSize={16} />
+                    <Bar dataKey="visits" name="Visits" fill="#D4AF37" radius={[0, 4, 4, 0]} maxBarSize={16} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -247,7 +252,7 @@ export default function AdminAnalytics() {
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: COLORS[i % COLORS.length] }}
                       />
-                      <span className="text-white/70 text-sm">{source.name}</span>
+                      <span className="text-white/70 text-sm">{source.name || "Unknown"}</span>
                       <span className="text-white font-semibold text-sm ml-auto">
                         {source.value}%
                       </span>
