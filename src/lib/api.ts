@@ -19,6 +19,11 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   });
+  const ct = res.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) {
+    const text = await res.text();
+    throw new Error(`Expected JSON but got ${ct} (status ${res.status}): ${text.slice(0, 200)}`);
+  }
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || "Request failed");
   return json.data;
@@ -42,27 +47,27 @@ export interface ProjectData {
 }
 
 export function fetchProjects() {
-  return request<any[]>("projects");
+  return request<any[]>("/projects");
 }
 
 export function fetchProject(id: string) {
-  return request<any>(`projects/${id}`);
+  return request<any>(`/projects/${id}`);
 }
 
 export function createProject(data: ProjectData) {
-  return request<any>("projects", {
+  return request<any>("/projects", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
 export function updateProject(id: string, data: Partial<ProjectData>) {
-  return request<any>(`projects/${id}`, {
+  return request<any>(`/projects/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
 }
 
 export function deleteProject(id: string) {
-  return request<any>(`projects/${id}`, { method: "DELETE" });
+  return request<any>(`/projects/${id}`, { method: "DELETE" });
 }

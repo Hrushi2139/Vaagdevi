@@ -14,7 +14,28 @@ import {
   Globe,
   Download,
   Map as MapIcon,
+  Upload,
 } from "lucide-react";
+
+const UPLOAD_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
+
+async function uploadFiles(files: File[]): Promise<string[]> {
+  const token = localStorage.getItem("admin_token");
+  const formData = new FormData();
+  files.forEach((f) => formData.append("files", f));
+  const opts: RequestInit = { method: "POST", body: formData };
+  if (token) opts.headers = { Authorization: `Bearer ${token}` };
+  const res = await fetch(`${UPLOAD_URL}/api/upload`, opts);
+  const ct = res.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) {
+    const text = await res.text();
+    throw new Error(`Backend returned HTML instead of JSON (status ${res.status}). Is the backend server running at ${UPLOAD_URL}?`);
+  }
+  if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || "Upload failed");
+  return json.data;
+}
 
 const statusColors: Record<string, string> = {
   Ongoing: "bg-accent/20 text-accent border-accent/30",
@@ -50,6 +71,7 @@ export default function AdminProjects() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchProjects()
@@ -449,31 +471,53 @@ export default function AdminProjects() {
                 </div>
 
                 <div>
-                  <label className="block text-white/70 text-sm font-medium mb-1.5">Images (URLs)</label>
-                  {form.images.map((img, i) => (
-                    <div key={i} className="flex gap-2 mb-2">
-                      <input
-                        value={img}
-                        onChange={(e) => updateArrayField("images", i, e.target.value)}
-                        className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
-                        placeholder="Image URL"
-                      />
-                      {form.images.length > 1 && (
-                        <button
-                          onClick={() => removeArrayField("images", i)}
-                          className="text-red-400 hover:text-red-300 px-2 cursor-pointer"
-                        >
-                          <X size={16} />
-                        </button>
+                  <label className="block text-white/70 text-sm font-medium mb-1.5">Images</label>
+                  <div className="flex flex-wrap gap-3 mb-3">
+                    {form.images.map((img, i) => (
+                      img ? (
+                        <div key={i} className="relative group w-24 h-24 rounded-lg overflow-hidden border border-accent/20">
+                          <img src={img} alt="" className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => removeArrayField("images", i)}
+                            className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          >
+                            <X size={20} className="text-red-400" />
+                          </button>
+                        </div>
+                      ) : null
+                    ))}
+                    <label className="w-24 h-24 rounded-lg border-2 border-dashed border-accent/30 flex items-center justify-center cursor-pointer hover:border-accent/60 transition-colors bg-white/5">
+                      {uploading ? (
+                        <Loader2 size={20} className="text-accent animate-spin" />
+                      ) : (
+                        <Upload size={20} className="text-accent/60" />
                       )}
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => addArrayField("images")}
-                    className="text-accent text-sm hover:underline cursor-pointer"
-                  >
-                    + Add Image
-                  </button>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        disabled={uploading}
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (!files.length) return;
+                          setUploading(true);
+                          try {
+                            const urls = await uploadFiles(files);
+                            setForm((prev) => ({
+                              ...prev,
+                              images: [...prev.images.filter(Boolean), ...urls, ""],
+                            }));
+                          } catch (err) {
+                            console.error("Upload failed", err);
+                          } finally {
+                            setUploading(false);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
 
                 <div>
@@ -562,22 +606,66 @@ export default function AdminProjects() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-white/70 text-sm font-medium mb-1.5">Brochure URL</label>
-                    <input
-                      value={form.brochure}
-                      onChange={(e) => updateForm("brochure", e.target.value)}
-                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
-                      placeholder="/brochures/project.pdf"
-                    />
+                    <label className="block text-white/70 text-sm font-medium mb-1.5">Brochure</label>
+                    <div className="flex gap-2">
+                      <input
+                        value={form.brochure}
+                        onChange={(e) => updateForm("brochure", e.target.value)}
+                        className="flex-1 px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+                        placeholder="Paste URL or upload"
+                      />
+                      <label className="flex-shrink-0 px-3 py-2.5 rounded-lg bg-accent/20 text-accent hover:bg-accent/30 transition-colors cursor-pointer flex items-center gap-1.5 text-sm">
+                        <Upload size={16} />
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            setUploading(true);
+                            try {
+                              const urls = await uploadFiles([f]);
+                              updateForm("brochure", urls[0]);
+                            } finally {
+                              setUploading(false);
+                              e.target.value = "";
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-white/70 text-sm font-medium mb-1.5">Master Plan URL</label>
-                    <input
-                      value={form.masterPlan}
-                      onChange={(e) => updateForm("masterPlan", e.target.value)}
-                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
-                      placeholder="Image URL"
-                    />
+                    <label className="block text-white/70 text-sm font-medium mb-1.5">Master Plan</label>
+                    <div className="flex gap-2">
+                      <input
+                        value={form.masterPlan}
+                        onChange={(e) => updateForm("masterPlan", e.target.value)}
+                        className="flex-1 px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+                        placeholder="Paste URL or upload"
+                      />
+                      <label className="flex-shrink-0 px-3 py-2.5 rounded-lg bg-accent/20 text-accent hover:bg-accent/30 transition-colors cursor-pointer flex items-center gap-1.5 text-sm">
+                        <Upload size={16} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            setUploading(true);
+                            try {
+                              const urls = await uploadFiles([f]);
+                              updateForm("masterPlan", urls[0]);
+                            } finally {
+                              setUploading(false);
+                              e.target.value = "";
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>

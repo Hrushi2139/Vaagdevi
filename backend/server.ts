@@ -9,6 +9,7 @@ import leadRoutes from './routes/leads';
 import testimonialRoutes from './routes/testimonials';
 import galleryRoutes from './routes/gallery';
 import analyticsRoutes from './routes/analytics';
+import uploadRoutes from './routes/upload';
 
 dotenv.config();
 
@@ -16,7 +17,7 @@ const app = express();
 
 app.use(cors({ origin: ['http://localhost:3000', 'https://vaagdevi.vercel.app'], credentials: true }));
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
@@ -24,6 +25,7 @@ app.use('/api/leads', leadRoutes);
 app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/upload', uploadRoutes);
 
 const PORT = process.env.PORT || 5000;
 
