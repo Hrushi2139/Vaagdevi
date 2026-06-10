@@ -12,15 +12,28 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const { isAuthenticated, login } = useAdminAuth(false);
   const router = useRouter();
+  const [initialCheck, setInitialCheck] = useState(true);
 
   useEffect(() => {
     if (isAuthenticated) {
       router.replace("/admin/dashboard");
+    } else {
+      setInitialCheck(false);
     }
   }, [isAuthenticated, router]);
+
+  if (initialCheck) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-secondary to-primary">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,14 +43,14 @@ export default function AdminLogin() {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       await login(email, password);
       router.replace("/admin/dashboard");
     } catch (err: any) {
       setError(err.message || "Invalid email or password");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -132,7 +145,7 @@ export default function AdminLogin() {
 
               <motion.button
                 type="submit"
-                disabled={loading}
+                disabled={submitting}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.4 }}
@@ -141,7 +154,7 @@ export default function AdminLogin() {
                 className="w-full gold-gradient text-white font-semibold py-3.5 rounded-lg shadow-lg shadow-accent/20 hover:shadow-xl hover:shadow-accent/30 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
                 <LogIn size={18} />
-                {loading ? "Signing in..." : "Sign In"}
+                {submitting ? "Signing in..." : "Sign In"}
               </motion.button>
             </form>
 

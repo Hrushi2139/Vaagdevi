@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   title: "Vaagdevi Infra Projects | Building Tomorrow's Landmarks",
   description:
     "Premium residential, commercial and investment destinations designed for growth and prosperity.",
+  icons: {
+    icon: "/images/logo.png",
+    shortcut: "/images/logo.png",
+    apple: "/images/logo.png",
+  },
   keywords: [
     "Vaagdevi Infra",
     "real estate",

@@ -4,7 +4,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import Lenis from "lenis";
 
 export default function LenisProvider({ children }: { children: ReactNode }) {
-  const lenisRef = useRef<Lenis | null>(null);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     const lenis = new Lenis({
@@ -16,16 +16,15 @@ export default function LenisProvider({ children }: { children: ReactNode }) {
       touchMultiplier: 1.5,
     });
 
-    lenisRef.current = lenis;
-
     function raf(time: number) {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      rafRef.current = requestAnimationFrame(raf);
     }
 
-    requestAnimationFrame(raf);
+    rafRef.current = requestAnimationFrame(raf);
 
     return () => {
+      cancelAnimationFrame(rafRef.current);
       lenis.destroy();
     };
   }, []);

@@ -3,8 +3,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import AdminSidebar from "@/components/shared/AdminSidebar";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
 import {
   Search,
   X,
@@ -12,6 +10,7 @@ import {
   Mail,
   Calendar,
   FileText,
+  Loader2,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -53,8 +52,6 @@ export default function AdminLeads() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [fetching, setFetching] = useState(true);
 
-  const { isAuthenticated, loading } = useAdminAuth();
-
   const filteredLeads = useMemo(
     () =>
       leads.filter((l) => {
@@ -77,8 +74,11 @@ export default function AdminLeads() {
   }, [leads]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
     const token = localStorage.getItem("admin_token");
+    if (!token) {
+      setFetching(false);
+      return;
+    }
     fetch(`${API_URL}/leads`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -88,10 +88,7 @@ export default function AdminLeads() {
       })
       .catch((err) => console.error("Failed to fetch leads", err))
       .finally(() => setFetching(false));
-  }, [isAuthenticated]);
-
-  if (loading || fetching) return null;
-  if (!isAuthenticated) return null;
+  }, []);
 
   const updateStatus = async (id: string, newStatus: string) => {
     const token = localStorage.getItem("admin_token");
@@ -115,12 +112,17 @@ export default function AdminLeads() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#1A1A1A]">
-      <AdminSidebar />
+  if (fetching) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={32} className="text-accent animate-spin" />
+      </div>
+    );
+  }
 
-      <div className="md:ml-64 min-h-screen">
-        {/* Header */}
+  return (
+    <div>
+      {/* Header */}
         <div className="sticky top-0 z-30 bg-secondary/80 backdrop-blur-lg border-b border-accent/10 px-6 py-4">
           <h1 className="text-xl font-semibold text-white font-[family-name:var(--font-display)]">
             Lead Management
@@ -255,10 +257,9 @@ export default function AdminLeads() {
               <div className="text-center py-12 text-white/30 text-sm">No leads found</div>
             )}
           </motion.div>
-        </div>
-      </div>
+    </div>
 
-      {/* Lead Detail Modal */}
+    {/* Lead Detail Modal */}
       <AnimatePresence>
         {selectedLead && (
           <motion.div

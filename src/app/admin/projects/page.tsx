@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import AdminSidebar from "@/components/shared/AdminSidebar";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { fetchProjects, createProject, updateProject, deleteProject } from "@/lib/api";
 import {
   Plus,
@@ -52,7 +50,6 @@ export default function AdminProjects() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
-  const { isAuthenticated, loading: authLoading } = useAdminAuth();
 
   useEffect(() => {
     fetchProjects()
@@ -60,9 +57,6 @@ export default function AdminProjects() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
-
-  if (authLoading) return null;
-  if (!isAuthenticated) return null;
 
   const openAdd = () => {
     setForm(defaultForm);
@@ -187,11 +181,8 @@ export default function AdminProjects() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A]">
-      <AdminSidebar />
-
-      <div className="md:ml-64 min-h-screen">
-        {/* Header */}
+    <div>
+      {/* Header */}
         <div className="sticky top-0 z-30 bg-secondary/80 backdrop-blur-lg border-b border-accent/10 px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-white font-[family-name:var(--font-display)]">
             Projects
@@ -292,7 +283,6 @@ export default function AdminProjects() {
             </div>
           )}
         </div>
-      </div>
 
       {/* Delete Confirmation */}
       <AnimatePresence>

@@ -1,29 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-export function useAdminAuth(requireAuth = true) {
-  const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<{ email: string; name: string } | null>(null);
-
-  useEffect(() => {
+function readAuthState(): { isAuthenticated: boolean; user: { email: string; name: string } | null } {
+  if (typeof window === "undefined") return { isAuthenticated: false, user: null };
+  try {
     const token = localStorage.getItem("admin_token");
     const userData = localStorage.getItem("admin_user");
-
     if (token && userData && userData !== "undefined") {
-      setIsAuthenticated(true);
-      setUser(JSON.parse(userData));
-    } else if (requireAuth) {
+      return { isAuthenticated: true, user: JSON.parse(userData) };
+    }
+  } catch {}
+  return { isAuthenticated: false, user: null };
+}
+
+export function useAdminAuth(requireAuth = true) {
+  const router = useRouter();
+  const [state, setState] = useState(() => readAuthState());
+  const [loading, setLoading] = useState(false);
+  const redirectedRef = useRef(false);
+
+  useEffect(() => {
+    if (!state.isAuthenticated && requireAuth && !redirectedRef.current) {
+      redirectedRef.current = true;
       router.replace("/admin");
     }
-
-    setLoading(false);
-  }, [requireAuth, router]);
+  }, [state.isAuthenticated, requireAuth, router]);
 
   const login = async (email: string, password: string) => {
     const res = await fetch(`${API_URL}/auth/login`, {
@@ -42,19 +47,23 @@ export function useAdminAuth(requireAuth = true) {
     const user = data.data?.user || data.user;
     localStorage.setItem("admin_token", token);
     localStorage.setItem("admin_user", JSON.stringify(user));
-    setIsAuthenticated(true);
-    setUser(user);
+    setState({ isAuthenticated: true, user });
     return data;
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_user");
     localStorage.removeItem("vaagdevi_admin");
-    setIsAuthenticated(false);
-    setUser(null);
-    window.location.href = "/admin";
-  };
+    setState({ isAuthenticated: false, user: null });
+    router.replace("/admin");
+  }, [router]);
 
-  return { isAuthenticated, loading, user, login, logout };
+  return {
+    isAuthenticated: state.isAuthenticated,
+    loading,
+    user: state.user,
+    login,
+    logout,
+  };
 }

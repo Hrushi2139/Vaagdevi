@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import AdminSidebar from "@/components/shared/AdminSidebar";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Trash2, Plus } from "lucide-react";
 
 const initialItems = [
@@ -15,14 +13,9 @@ const initialItems = [
 
 export default function AdminGallery() {
   const [items, setItems] = useState(initialItems);
-  const { isAuthenticated, loading } = useAdminAuth();
-  if (loading) return null;
-  if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A]">
-      <AdminSidebar />
-      <div className="md:ml-64 min-h-screen">
+    <div className="min-h-screen">
         <div className="sticky top-0 z-30 bg-secondary/80 backdrop-blur-lg border-b border-accent/10 px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-white font-[family-name:var(--font-display)]">Gallery</h1>
           <button className="gold-gradient text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer">
@@ -52,7 +45,6 @@ export default function AdminGallery() {
             ))}
           </div>
         </div>
-      </div>
     </div>
   );
 }

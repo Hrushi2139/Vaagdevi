@@ -1,20 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import AdminSidebar from "@/components/shared/AdminSidebar";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Save } from "lucide-react";
 
 export default function AdminSettings() {
   const [form, setForm] = useState({ siteName: "Vaagdevi Infra Projects", email: "info@vaagdeviinfra.com", phone: "+91 97009 25393" });
-  const { isAuthenticated, loading } = useAdminAuth();
-  if (loading) return null;
-  if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A]">
-      <AdminSidebar />
-      <div className="md:ml-64 min-h-screen">
+    <div>
         <div className="sticky top-0 z-30 bg-secondary/80 backdrop-blur-lg border-b border-accent/10 px-6 py-4">
           <h1 className="text-xl font-semibold text-white font-[family-name:var(--font-display)]">Settings</h1>
         </div>
@@ -40,7 +33,6 @@ export default function AdminSettings() {
             </button>
           </div>
         </div>
-      </div>
     </div>
   );
 }

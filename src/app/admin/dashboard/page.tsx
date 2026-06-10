@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import AdminSidebar from "@/components/shared/AdminSidebar";
 import {
   Building2,
   Activity,
@@ -13,9 +12,9 @@ import {
   Plus,
   Eye,
   BarChart3,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -55,15 +54,18 @@ export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [recent, setRecent] = useState<RecentLead[]>([]);
   const [fetching, setFetching] = useState(true);
-
-  const { isAuthenticated, loading } = useAdminAuth();
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    const token = localStorage.getItem("admin_token");
+    const t = localStorage.getItem("admin_token");
+    setToken(t);
+    if (!t) {
+      setFetching(false);
+      return;
+    }
 
     fetch(`${API_URL}/analytics`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${t}` },
     })
       .then((r) => r.json())
       .then((res) => {
@@ -72,7 +74,7 @@ export default function AdminDashboard() {
       .catch(() => {});
 
     fetch(`${API_URL}/leads`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${t}` },
     })
       .then((r) => r.json())
       .then((res) => {
@@ -80,10 +82,7 @@ export default function AdminDashboard() {
       })
       .catch(() => {})
       .finally(() => setFetching(false));
-  }, [isAuthenticated]);
-
-  if (loading || fetching) return null;
-  if (!isAuthenticated) return null;
+  }, []);
 
   const stats = [
     { icon: Building2, label: "Total Projects", value: String(data?.totalProjects ?? 0), color: "from-blue-500 to-blue-600" },
@@ -99,13 +98,17 @@ export default function AdminDashboard() {
     Converted: "bg-accent/20 text-accent border-accent/30",
   };
 
-  return (
-    <div className="min-h-screen bg-[#1A1A1A]">
-      <AdminSidebar />
+  if (fetching) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={32} className="text-accent animate-spin" />
+      </div>
+    );
+  }
 
-      {/* Main Content */}
-      <div className="md:ml-64 min-h-screen">
-        {/* Top Navbar */}
+  return (
+    <div>
+      {/* Top Navbar */}
         <div className="sticky top-0 z-30 bg-secondary/80 backdrop-blur-lg border-b border-accent/10 px-6 py-4 flex items-center justify-between">
           <h1 className="text-white/70 text-sm font-medium">
             Welcome, <span className="text-white font-semibold">Admin</span>
@@ -252,7 +255,6 @@ export default function AdminDashboard() {
             </Link>
           </motion.div>
         </div>
-      </div>
     </div>
   );
 }

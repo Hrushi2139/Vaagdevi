@@ -3,15 +3,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import AdminSidebar from "@/components/shared/AdminSidebar";
 import {
   Building2,
   Activity,
   Users,
   MessageCircle,
   MapPin,
+  Loader2,
 } from "lucide-react";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
 import {
   BarChart,
   Bar,
@@ -77,11 +76,13 @@ interface AnalyticsData {
 export default function AdminAnalytics() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [fetching, setFetching] = useState(true);
-  const { isAuthenticated, loading } = useAdminAuth();
 
   useEffect(() => {
-    if (!isAuthenticated) return;
     const token = localStorage.getItem("admin_token");
+    if (!token) {
+      setFetching(false);
+      return;
+    }
     fetch(`${API_URL}/analytics`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -91,10 +92,7 @@ export default function AdminAnalytics() {
       })
       .catch(() => {})
       .finally(() => setFetching(false));
-  }, [isAuthenticated]);
-
-  if (loading || fetching) return null;
-  if (!isAuthenticated) return null;
+  }, []);
 
   const stats = [
     { icon: Building2, label: "Total Projects", value: String(analytics?.totalProjects ?? 0), color: "from-blue-500 to-blue-600" },
@@ -108,12 +106,17 @@ export default function AdminAnalytics() {
   const projectPerformance = analytics?.projectPerformance ?? [];
   const leadSources = analytics?.leadSources ?? [];
 
-  return (
-    <div className="min-h-screen bg-[#1A1A1A]">
-      <AdminSidebar />
+  if (fetching) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={32} className="text-accent animate-spin" />
+      </div>
+    );
+  }
 
-      <div className="md:ml-64 min-h-screen">
-        {/* Header */}
+  return (
+    <div>
+      {/* Header */}
         <div className="sticky top-0 z-30 bg-secondary/80 backdrop-blur-lg border-b border-accent/10 px-6 py-4">
           <h1 className="text-xl font-semibold text-white font-[family-name:var(--font-display)]">
             Analytics
@@ -261,7 +264,6 @@ export default function AdminAnalytics() {
                 </div>
               </div>
             </motion.div>
-          </div>
         </div>
       </div>
     </div>
