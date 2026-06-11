@@ -1,14 +1,15 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
-import { v2 as cloudinary } from 'cloudinary';
+import { createClient } from '@supabase/supabase-js';
 import auth from '../middleware/auth';
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const BUCKET = 'vaagdevi';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -33,28 +34,28 @@ router.post('/', auth, upload.array('files', 20), async (req: Request, res: Resp
       return;
     }
 
-    const uploadPromises = files.map((file) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      const isPdf = ext === '.pdf';
-      const id = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const urls = await Promise.all(
+      files.map(async (file) => {
+        const ext = path.extname(file.originalname);
+        const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
 
-      return new Promise<string>((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          {
-            folder: 'vaagdevi',
-            resource_type: isPdf ? 'raw' : 'image',
-            public_id: isPdf ? `${id}${ext}` : id,
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result!.secure_url);
-          }
-        );
-        stream.end(file.buffer);
-      });
-    });
+        const { error } = await supabase.storage
+          .from(BUCKET)
+          .upload(filename, file.buffer, {
+            contentType: file.mimetype,
+            upsert: true,
+          });
 
-    const urls = await Promise.all(uploadPromises);
+        if (error) throw error;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from(BUCKET)
+          .getPublicUrl(filename);
+
+        return publicUrl;
+      })
+    );
+
     res.json({ success: true, data: urls });
   } catch (error) {
     console.error('Upload error:', error);

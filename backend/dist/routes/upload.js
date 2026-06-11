@@ -6,13 +6,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
-const cloudinary_1 = require("cloudinary");
+const supabase_js_1 = require("@supabase/supabase-js");
 const auth_1 = __importDefault(require("../middleware/auth"));
-cloudinary_1.v2.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const BUCKET = 'vaagdevi';
 const upload = (0, multer_1.default)({
     storage: multer_1.default.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 },
@@ -34,20 +31,22 @@ router.post('/', auth_1.default, upload.array('files', 20), async (req, res) => 
             res.status(400).json({ success: false, error: 'No files uploaded' });
             return;
         }
-        const uploadPromises = files.map((file) => new Promise((resolve, reject) => {
-            const stream = cloudinary_1.v2.uploader.upload_stream({
-                folder: 'vaagdevi',
-                resource_type: 'auto',
-                public_id: `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-            }, (error, result) => {
-                if (error)
-                    reject(error);
-                else
-                    resolve(result.secure_url);
+        const urls = await Promise.all(files.map(async (file) => {
+            const ext = path_1.default.extname(file.originalname);
+            const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
+            const { error } = await supabase.storage
+                .from(BUCKET)
+                .upload(filename, file.buffer, {
+                contentType: file.mimetype,
+                upsert: true,
             });
-            stream.end(file.buffer);
+            if (error)
+                throw error;
+            const { data: { publicUrl } } = supabase.storage
+                .from(BUCKET)
+                .getPublicUrl(filename);
+            return publicUrl;
         }));
-        const urls = await Promise.all(uploadPromises);
         res.json({ success: true, data: urls });
     }
     catch (error) {
