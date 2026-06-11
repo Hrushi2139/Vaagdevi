@@ -458,13 +458,14 @@ export default function ProjectDetail() {
               </p>
               <motion.a
                 href={project.brochure}
-                download
+                target="_blank"
+                rel="noopener noreferrer"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="gold-gradient text-white font-semibold px-8 py-4 rounded-full inline-flex items-center gap-3 shadow-lg shadow-[#D4AF37]/30 hover:shadow-xl hover:shadow-[#D4AF37]/40 transition-all duration-300"
               >
                 <Download size={20} />
-                Download Brochure
+                View Brochure
               </motion.a>
             </motion.div>
           </div>
