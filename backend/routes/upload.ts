@@ -33,13 +33,17 @@ router.post('/', auth, upload.array('files', 20), async (req: Request, res: Resp
       return;
     }
 
-    const uploadPromises = files.map((file) =>
-      new Promise<string>((resolve, reject) => {
+    const uploadPromises = files.map((file) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const isPdf = ext === '.pdf';
+      const id = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+      return new Promise<string>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
             folder: 'vaagdevi',
-            resource_type: 'auto',
-            public_id: `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+            resource_type: isPdf ? 'raw' : 'image',
+            public_id: isPdf ? `${id}${ext}` : id,
           },
           (error, result) => {
             if (error) reject(error);
@@ -47,8 +51,8 @@ router.post('/', auth, upload.array('files', 20), async (req: Request, res: Resp
           }
         );
         stream.end(file.buffer);
-      })
-    );
+      });
+    });
 
     const urls = await Promise.all(uploadPromises);
     res.json({ success: true, data: urls });
