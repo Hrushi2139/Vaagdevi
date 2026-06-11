@@ -33,16 +33,15 @@ router.post('/', auth, upload.array('files', 20), async (req: Request, res: Resp
       return;
     }
 
-    const isPdf = (f: Express.Multer.File) =>
-      f.mimetype === 'application/pdf' || path.extname(f.originalname).toLowerCase() === '.pdf';
-
     const uploadPromises = files.map((file) =>
       new Promise<string>((resolve, reject) => {
+        const ext = path.extname(file.originalname);
+        const id = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
         const stream = cloudinary.uploader.upload_stream(
           {
             folder: 'vaagdevi',
-            resource_type: isPdf(file) ? 'raw' : 'image',
-            public_id: `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+            resource_type: 'auto',
+            public_id: id,
           },
           (error, result) => {
             if (error) reject(error);
