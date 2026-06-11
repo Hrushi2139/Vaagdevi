@@ -4,12 +4,16 @@ import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import auth from '../middleware/auth';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 const BUCKET = 'vaagdevi';
+
+function getSupabase() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+  }
+  return createClient(url, key);
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -39,7 +43,8 @@ router.post('/', auth, upload.array('files', 20), async (req: Request, res: Resp
         const ext = path.extname(file.originalname);
         const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
 
-        const { error } = await supabase.storage
+        const sb = getSupabase();
+        const { error } = await sb.storage
           .from(BUCKET)
           .upload(filename, file.buffer, {
             contentType: file.mimetype,
@@ -48,7 +53,7 @@ router.post('/', auth, upload.array('files', 20), async (req: Request, res: Resp
 
         if (error) throw error;
 
-        const { data: { publicUrl } } = supabase.storage
+        const { data: { publicUrl } } = sb.storage
           .from(BUCKET)
           .getPublicUrl(filename);
 
