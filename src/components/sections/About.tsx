@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
 
 const stats = [
   { value: 15, suffix: "+", label: "Years of Excellence" },
@@ -10,12 +9,12 @@ const stats = [
   { value: 25, suffix: "+", label: "Projects Delivered" },
 ];
 
-const timeline = [
-  { year: "2010", label: "Founded" },
-  { year: "2013", label: "First Project" },
-  { year: "2016", label: "Expansion" },
-  { year: "2019", label: "Landmark Status" },
-  { year: "2024", label: "Future Forward" },
+const process = [
+  { number: "01", title: "Explore", description: "Browse our premium layouts and investment opportunities." },
+  { number: "02", title: "Site Visit", description: "Visit the project location with our dedicated experts." },
+  { number: "03", title: "Choose & Book", description: "Select your preferred plot and confirm with a booking amount." },
+  { number: "04", title: "Documentation", description: "Transparent agreements and legal verification process." },
+  { number: "05", title: "Registration & Possession", description: "Complete registration and receive possession without hassle." },
 ];
 
 function Counter({ value, suffix, label }: { value: number; suffix: string; label: string }) {
@@ -77,7 +76,7 @@ export default function About() {
               {/* Image placeholder */}
               <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                 <div className="absolute inset-0 bg-black/10" />
-                <span className="gold-text text-5xl md:text-7xl font-display font-bold tracking-[0.2em] opacity-70 select-none">
+                <span className="gold-text text-2xl md:text-4xl font-display font-bold tracking-[0.08em] opacity-70 select-none text-center px-2">
                   ARCHITECTURE
                 </span>
               </div>
@@ -145,43 +144,72 @@ export default function About() {
           </motion.div>
         </div>
 
-        {/* Timeline */}
+        {/* Process Flow */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="mt-24 relative"
+          className="mt-24"
         >
-          {/* Gold line */}
-          <div className="absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-accent/20 via-accent to-accent/20 hidden md:block -translate-y-1/2" />
+          {/* Section header */}
+          <div className="text-center mb-14">
+            <motion.span
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.5 }}
+              className="gold-text text-sm md:text-base font-semibold tracking-[0.2em] uppercase"
+            >
+              Our Process
+            </motion.span>
+            <motion.h3
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-3xl md:text-4xl font-display text-secondary mt-3"
+            >
+              How It <span className="gold-text">Works</span>
+            </motion.h3>
+          </div>
 
-          <div className="flex overflow-x-auto md:grid md:grid-cols-5 gap-0 pb-4 md:pb-0 scrollbar-hide relative">
-            {timeline.map((item, i) => (
-              <motion.div
-                key={item.year}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.5, delay: 0.1 * i }}
-                className="flex flex-col items-center text-center flex-shrink-0 w-32 md:w-auto px-2"
-              >
-                {/* Dot */}
-                <div className="relative z-10">
-                  <div className="w-4 h-4 rounded-full bg-accent shadow-lg shadow-accent/30 mb-4" />
-                </div>
+          {/* Flow steps */}
+          <div className="relative">
+            {/* Connecting line */}
+            <div className="absolute top-[60px] left-[10%] right-[10%] h-px bg-gradient-to-r from-accent/20 via-accent to-accent/20 hidden lg:block" />
 
-                {/* Year */}
-                <span className="gold-text text-lg md:text-xl font-display font-bold">
-                  {item.year}
-                </span>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-10 md:gap-4 relative">
+              {process.map((step, i) => (
+                <motion.div
+                  key={step.number}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.5, delay: 0.1 * i }}
+                  className="flex flex-col items-center text-center relative"
+                >
+                  {/* Number circle */}
+                  <div className="relative z-10">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-accent to-accent/80 flex items-center justify-center shadow-lg shadow-accent/30 mb-5">
+                      <span className="text-white text-lg font-display font-bold">
+                        {step.number}
+                      </span>
+                    </div>
+                  </div>
 
-                {/* Label */}
-                <p className="text-charcoal/60 text-xs md:text-sm font-medium mt-1 whitespace-nowrap">
-                  {item.label}
-                </p>
-              </motion.div>
-            ))}
+                  {/* Title */}
+                  <h4 className="gold-text text-lg font-display font-bold mb-2">
+                    {step.title}
+                  </h4>
+
+                  {/* Description */}
+                  <p className="text-charcoal/60 text-sm leading-relaxed max-w-[220px]">
+                    {step.description}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </motion.div>
       </div>
